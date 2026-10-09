@@ -1,0 +1,184 @@
+{
+  "id": "osCrmLeadsWeb001",
+  "name": "CRM · Leads del formulario web",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "0b7e7f3c-6d0e-4b8a-9a1e-1f1a00000001",
+      "name": "Correo del formulario (Gmail)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Escucha la bandeja de entrada (IMAP) y toma solo los correos del remitente del formulario web. No los marca como leídos.",
+      "parameters": {
+        "mailbox": "INBOX",
+        "postProcessAction": "nothing",
+        "format": "resolved",
+        "options": {
+          "customEmailConfig": "[[\"FROM\", \"__FORM_SENDER__\"]]",
+          "trackLastMessageId": true
+        }
+      },
+      "credentials": {
+        "imap": {
+          "id": "osCrmImapGmail01",
+          "name": "Gmail de la empresa (IMAP)"
+        }
+      }
+    },
+    {
+      "id": "0b7e7f3c-6d0e-4b8a-9a1e-1f1a00000002",
+      "name": "Registrar lead en el CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        0
+      ],
+      "notes": "El CRM extrae los campos del formulario, evita duplicados y deja el lead en estado Nuevo.",
+      "parameters": {
+        "method": "POST",
+        "url": "__CRM_URL__/api/n8n/form-email",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messageId: $json.messageId, subject: $json.subject, date: $json.date, from: $json.from, replyTo: $json.replyTo, to: $json.to, text: $json.text, html: $json.html }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "osCrmTokenApi001",
+          "name": "CRM OpenSinergia (token)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "0b7e7f3c-6d0e-4b8a-9a1e-1f1a00000003",
+      "name": "¿Es un lead nuevo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0b7e7f3c-6d0e-4b8a-9a1e-1f1a0000c001",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "creado",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0b7e7f3c-6d0e-4b8a-9a1e-1f1a00000004",
+      "name": "Avisar a gerencia",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        840,
+        -100
+      ],
+      "parameters": {
+        "fromEmail": "={{ $json.notify_from }}",
+        "toEmail": "={{ $json.notify_to }}",
+        "subject": "=Nuevo lead desde la web: {{ $json.name || $json.email || 'sin nombre' }}",
+        "emailFormat": "text",
+        "text": "=Llegó un lead nuevo por el formulario web y ya quedó registrado en el CRM.\n\nNombre: {{ $json.name || '—' }}\nCorreo: {{ $json.email || '—' }}\nTeléfono: {{ $json.phone || '—' }}\nServicio de interés: {{ $json.interest || '—' }}\n{{ $json.needs_review ? '\\nOJO: el formulario no trae correo ni teléfono. Revise el correo original.\\n' : '' }}{{ $json.url ? '\\nVer en el CRM: ' + $json.url : '' }}\n\nRecuerde registrar la próxima acción para que no se pierda el seguimiento.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "osCrmSmtpGmail01",
+          "name": "Gmail de la empresa (SMTP)"
+        }
+      }
+    },
+    {
+      "id": "0b7e7f3c-6d0e-4b8a-9a1e-1f1a00000005",
+      "name": "Ya existía (queda en su historial)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        840,
+        100
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Correo del formulario (Gmail)": {
+      "main": [
+        [
+          {
+            "node": "Registrar lead en el CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar lead en el CRM": {
+      "main": [
+        [
+          {
+            "node": "¿Es un lead nuevo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es un lead nuevo?": {
+      "main": [
+        [
+          {
+            "node": "Avisar a gerencia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ya existía (queda en su historial)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Bogota",
+    "errorWorkflow": "osCrmAlertaErr01",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "tags": []
+}

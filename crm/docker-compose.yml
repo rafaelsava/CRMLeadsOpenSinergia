@@ -1,0 +1,38 @@
+services:
+  crm:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      DATA_DIR: /data
+      # El botón "Enviar resumen" del CRM dispara el flujo de n8n.
+      N8N_SUMMARY_WEBHOOK: http://n8n:5678/webhook/crm-resumen
+    ports:
+      # Solo accesible desde el propio servidor; se publica con HTTPS mediante Caddy o Nginx (ver README).
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - crm-data:/data
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.42.6
+    restart: unless-stopped
+    environment:
+      GENERIC_TIMEZONE: America/Bogota
+      TZ: America/Bogota
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      # Si n8n se publica con HTTPS (p. ej. https://n8n.opensinergia.com), ajuste estas tres en .env.
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes:
+      - n8n-data:/home/node/.n8n
+    depends_on:
+      - crm
+
+volumes:
+  crm-data:
+  n8n-data:

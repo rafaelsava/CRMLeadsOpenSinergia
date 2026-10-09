@@ -1,0 +1,64 @@
+{
+  "id": "osCrmAlertaErr01",
+  "name": "CRM · Alerta de errores",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "9d4e1a77-2c3b-4f10-b0aa-3c3c00000001",
+      "name": "Falló un flujo del CRM",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "9d4e1a77-2c3b-4f10-b0aa-3c3c00000002",
+      "name": "Avisar del error",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "fromEmail": "__ALERT_FROM__",
+        "toEmail": "__ALERT_TO__",
+        "subject": "=Falló el flujo «{{ $json.workflow.name }}» del CRM",
+        "emailFormat": "text",
+        "text": "=El flujo «{{ $json.workflow.name }}» de n8n falló.\n\nNodo: {{ $json.execution.lastNodeExecuted || '—' }}\nError: {{ $json.execution.error.message }}\n{{ $json.execution.url ? 'Ver la ejecución: ' + $json.execution.url : '' }}\n\nCuando el CRM vuelva a funcionar, abra esa ejecución en n8n y pulse «Reintentar» para recuperar el lead. Mientras tanto, revise el correo del formulario en Gmail.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "osCrmSmtpGmail01",
+          "name": "Gmail de la empresa (SMTP)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Falló un flujo del CRM": {
+      "main": [
+        [
+          {
+            "node": "Avisar del error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Bogota"
+  },
+  "pinData": {},
+  "tags": []
+}

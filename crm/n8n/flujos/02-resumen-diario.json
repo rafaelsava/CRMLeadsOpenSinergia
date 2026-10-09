@@ -1,0 +1,191 @@
+{
+  "id": "osCrmResumenDia1",
+  "name": "CRM · Resumen diario para gerencia",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "5c2a9d10-3b7f-4e55-8f00-2b2b00000001",
+      "name": "Todos los días a las 7:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "5c2a9d10-3b7f-4e55-8f00-2b2b00000002",
+      "name": "Botón «Enviar resumen» del CRM",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        100
+      ],
+      "webhookId": "5c2a9d10-3b7f-4e55-8f00-2b2b0000beef",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-resumen",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "osCrmTokenApi001",
+          "name": "CRM OpenSinergia (token)"
+        }
+      }
+    },
+    {
+      "id": "5c2a9d10-3b7f-4e55-8f00-2b2b00000003",
+      "name": "Pedir resumen al CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        0
+      ],
+      "notes": "Pagos vencidos y por vencer, seguimientos de hoy y leads sin próxima acción, ya armados como correo.",
+      "parameters": {
+        "method": "GET",
+        "url": "__CRM_URL__/api/n8n/summary",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "osCrmTokenApi001",
+          "name": "CRM OpenSinergia (token)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "5c2a9d10-3b7f-4e55-8f00-2b2b00000004",
+      "name": "Enviar correo a gerencia",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        560,
+        0
+      ],
+      "parameters": {
+        "fromEmail": "={{ $json.from }}",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "both",
+        "text": "={{ $json.text }}",
+        "html": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "osCrmSmtpGmail01",
+          "name": "Gmail de la empresa (SMTP)"
+        }
+      }
+    },
+    {
+      "id": "5c2a9d10-3b7f-4e55-8f00-2b2b00000005",
+      "name": "Confirmar envío al CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        0
+      ],
+      "notes": "El CRM registra el envío: con eso mide el indicador de vencimientos alertados a tiempo.",
+      "parameters": {
+        "method": "POST",
+        "url": "__CRM_URL__/api/n8n/summary-sent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $('Pedir resumen al CRM').item.json.to }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "osCrmTokenApi001",
+          "name": "CRM OpenSinergia (token)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Todos los días a las 7:00": {
+      "main": [
+        [
+          {
+            "node": "Pedir resumen al CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Botón «Enviar resumen» del CRM": {
+      "main": [
+        [
+          {
+            "node": "Pedir resumen al CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pedir resumen al CRM": {
+      "main": [
+        [
+          {
+            "node": "Enviar correo a gerencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar correo a gerencia": {
+      "main": [
+        [
+          {
+            "node": "Confirmar envío al CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Bogota",
+    "errorWorkflow": "osCrmAlertaErr01",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "tags": []
+}
