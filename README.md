@@ -13,6 +13,7 @@ Proyecto de **Gerencia de Operaciones de TI** (Universidad de La Sabana, 2026): 
 | [`crm/`](crm/) | MVP funcional: CRM (registro central + front) y flujos de **n8n** para las automatizaciones |
 | [`crm/README.md`](crm/README.md) | Cómo probarlo, desplegarlo en el VPS y el guion de demo |
 | [`crm/n8n/flujos/`](crm/n8n/flujos/) | Los 3 flujos de n8n (JSON importable) |
+| [`crm/docker-compose.demo.yml`](crm/docker-compose.demo.yml) | Modo demo: todo el sistema con correos de prueba, sin Gmail |
 
 ## El MVP en una frase
 
@@ -23,7 +24,39 @@ Formulario web ─► Gmail ─(IMAP)─► n8n ─► CRM (leads, clientes, pag
                                      └─► correo a gerencia (lead nuevo, resumen diario, alertas de error)
 ```
 
-## Probarlo en 2 minutos (local, con datos ficticios)
+## Ver la demo completa con Docker (recomendado para revisar)
+
+Levanta todo el sistema en su computador: CRM, n8n con los 3 flujos ya activos, un formulario de contacto simulado y correos de prueba en lugar de Gmail. No necesita contraseñas ni configurar nada.
+
+Requisitos:
+- Docker Desktop (o Docker Engine con `docker compose` 2.24 o superior).
+- Los puertos 8080, 5678, 8025 y 8090 libres.
+- La primera vez descarga unos 2 GB de imágenes.
+
+```bash
+git clone https://github.com/rafaelsava/CRMLeadsOpenSinergia.git
+cd CRMLeadsOpenSinergia/crm
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+```
+
+En menos de un minuto abra **http://localhost:8090**:
+
+| Qué | Dónde | Acceso |
+|---|---|---|
+| Formulario simulado + guía de la demo | http://localhost:8090 | — |
+| CRM | http://localhost:8080 | `demo` / `demo2026` |
+| n8n (los flujos) | http://localhost:5678 | `demo@opensinergia.demo` / `Demo2026!` |
+| Bandeja de correo (lo que n8n envía a gerencia) | http://localhost:8025 | — |
+
+Recorrido sugerido:
+1. Envíe el formulario ("Usar datos de ejemplo" lo llena).
+2. En segundos el lead aparece en el CRM (Leads → Nuevo) y el aviso «Nuevo lead desde la web» llega a la bandeja.
+3. En n8n, la pestaña *Executions* de cada flujo muestra lo que pasó.
+4. En el CRM, pulse **Enviar resumen** en la pantalla Hoy.
+
+Para apagarla: `docker compose -f docker-compose.yml -f docker-compose.demo.yml down`. Agregue `-v` para borrar también los datos de la demo.
+
+## Solo el CRM, sin Docker (2 minutos)
 
 Requiere Python 3.9 o superior. No hay dependencias que instalar.
 
@@ -34,7 +67,7 @@ python3 app.py adduser <usuario>  # pide la contraseña
 python3 app.py serve              # abrir http://127.0.0.1:8080
 ```
 
-Despliegue completo con Docker + n8n: ver [`crm/README.md`](crm/README.md).
+Despliegue real en el VPS con Docker + n8n + Gmail: ver [`crm/README.md`](crm/README.md).
 
 ## Qué revisar
 

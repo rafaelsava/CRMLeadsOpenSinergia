@@ -1,0 +1,125 @@
+# Modo demo: todo el sistema en un solo computador, sin Gmail ni contraseñas reales.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+#   abrir http://localhost:8090
+#
+# Reemplaza Gmail por dos servidores de correo de prueba:
+#   correo-entrante  hace de bandeja de Gmail (IMAP): ahí llegan los formularios y n8n los lee.
+#   correo-saliente  recibe los correos que envía n8n y los muestra en http://localhost:8025.
+name: opensinergia-crm-demo
+
+x-demo: &demo
+  DATA_DIR: /data
+  N8N_API_TOKEN: demo-token-solo-para-pruebas-locales-0123456789
+  N8N_FORM_SENDER: formulario@opensinergia.demo
+  GMAIL_USER: gerencia@opensinergia.demo
+  GMAIL_APP_PASSWORD: demo
+  SUMMARY_TO: gerencia@opensinergia.demo
+  SUMMARY_FROM: crm@opensinergia.demo
+  APP_URL: http://localhost:8080
+  N8N_IMAP_HOST: correo-entrante
+  N8N_IMAP_PORT: "3143"
+  N8N_IMAP_SECURE: "0"
+  N8N_SMTP_HOST: correo-saliente
+  N8N_SMTP_PORT: "1025"
+  N8N_SMTP_SECURE: "0"
+  DEMO_CRM_USER: demo
+  DEMO_CRM_PASSWORD: demo2026
+  DEMO_N8N_EMAIL: demo@opensinergia.demo
+  DEMO_N8N_PASSWORD: Demo2026!
+
+services:
+  crm:
+    env_file: !reset []
+    environment:
+      <<: *demo
+      HOST: 0.0.0.0
+      # En la demo el CRM no lee Gmail ni envía correos: eso lo hace n8n.
+      GMAIL_USER: ""
+      GMAIL_APP_PASSWORD: ""
+    depends_on:
+      demo-preparar:
+        condition: service_completed_successfully
+
+  # 1. Datos ficticios, usuario del CRM y flujos de n8n con las credenciales de prueba.
+  demo-preparar:
+    image: opensinergia-crm:local
+    build: .
+    environment: *demo
+    command: ["python", "demo/preparar.py", "datos"]
+    healthcheck:
+      disable: true
+    volumes:
+      - crm-data:/data
+
+  # 2. Importa y publica los flujos en n8n antes de que arranque.
+  n8n-importar:
+    image: docker.n8n.io/n8nio/n8n:2.42.6
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        n8n import:credentials --input=/crm-data/n8n-demo/credenciales.json &&
+        n8n import:workflow --separate --input=/crm-data/n8n-demo/flujos &&
+        n8n publish:workflow --id=osCrmAlertaErr01 &&
+        n8n publish:workflow --id=osCrmLeadsWeb001 &&
+        n8n publish:workflow --id=osCrmResumenDia1
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - crm-data:/crm-data:ro
+    depends_on:
+      demo-preparar:
+        condition: service_completed_successfully
+
+  n8n:
+    depends_on:
+      n8n-importar:
+        condition: service_completed_successfully
+      correo-entrante:
+        condition: service_started
+
+  # 3. Crea la cuenta de demo para entrar al editor de n8n e imprime los accesos.
+  demo-cuenta-n8n:
+    image: opensinergia-crm:local
+    build: .
+    environment:
+      <<: *demo
+      N8N_URL: http://n8n:5678
+    command: ["python", "demo/preparar.py", "cuenta-n8n"]
+    healthcheck:
+      disable: true
+    depends_on:
+      n8n:
+        condition: service_started
+
+  # Formulario de contacto simulado + guía de la demo.
+  formulario:
+    image: opensinergia-crm:local
+    build: .
+    environment:
+      <<: *demo
+      PORT: "8090"
+      SMTP_HOST: correo-entrante
+      SMTP_PORT: "3025"
+      FORM_FROM: formulario@opensinergia.demo
+      FORM_TO: gerencia@opensinergia.demo
+    command: ["python", "demo/formulario.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/', timeout=4)"]
+    ports:
+      - "127.0.0.1:8090:8090"
+    depends_on:
+      correo-entrante:
+        condition: service_started
+
+  correo-entrante:
+    image: greenmail/standalone@sha256:1ef95a966418cd09b7ea91d504d8c0826bbe7a2f6e679a75c601a831587c1626
+    environment:
+      GREENMAIL_OPTS: "-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.auth.disabled"
+
+  correo-saliente:
+    image: axllent/mailpit:v1.31.4
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "127.0.0.1:8025:8025"

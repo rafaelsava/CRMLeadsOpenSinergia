@@ -92,13 +92,29 @@ def render_flow(path, s):
     return flow
 
 
+def generate(destination, s):
+    """Escribe credenciales.json y flujos/*.json listos para `n8n import:*` (lo usa el modo demo)."""
+    destination = Path(destination)
+    (destination / "flujos").mkdir(parents=True, exist_ok=True)
+    (destination / "credenciales.json").write_text(json.dumps(credentials(s), ensure_ascii=False), encoding="utf-8")
+    for path in sorted(FLOWS_DIR.glob("*.json")):
+        (destination / "flujos" / path.name).write_text(
+            json.dumps(render_flow(path, s), ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Instala los flujos del CRM en n8n")
     parser.add_argument("--compose", default="docker compose", help='comando de compose (por defecto "docker compose")')
     parser.add_argument("--service", default="n8n", help="nombre del servicio de n8n en docker-compose.yml")
+    parser.add_argument("--solo-generar", metavar="CARPETA",
+                        help="solo escribe credenciales y flujos en CARPETA, sin tocar n8n")
     args = parser.parse_args()
 
     s = settings(Config())
+    if args.solo_generar:
+        generate(args.solo_generar, s)
+        print(f"Credenciales y flujos generados en {args.solo_generar}")
+        return
     compose = shlex.split(args.compose)
 
     def run(*command, stdin=None):

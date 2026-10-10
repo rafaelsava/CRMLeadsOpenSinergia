@@ -1,6 +1,9 @@
+name: opensinergia-crm
+
 services:
   crm:
     build: .
+    image: opensinergia-crm:local
     restart: unless-stopped
     env_file: .env
     environment:
@@ -31,7 +34,8 @@ services:
     volumes:
       - n8n-data:/home/node/.n8n
     depends_on:
-      - crm
+      crm:
+        condition: service_started
 
 volumes:
   crm-data:

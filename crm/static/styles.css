@@ -214,6 +214,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .notice a { font-weight: 650; }
 .notice.warn { background: var(--warn-soft); color: var(--warn); border-color: rgb(239 192 114 / 45%); }
 .notice.danger { background: var(--danger-soft); color: var(--danger); }
+.notice.ok { background: var(--ok-soft); color: var(--ok); border-color: rgb(141 187 81 / 40%); }
+.demo-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; color: var(--muted); }
+.demo-steps strong, .demo-steps em { color: var(--text); }
 .stack > .notice { margin-bottom: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 /* ------------------------------------------------------------- vista Hoy */

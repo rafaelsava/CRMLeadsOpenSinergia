@@ -31,6 +31,31 @@ n8n «Alerta de errores» ─► correo a gerencia si cualquiera de los flujos f
 | Resumen diario por correo (pagos y seguimientos) | n8n + CRM | Recordatorios que dependen de la memoria (riesgo Alto) | Pagos vencidos, % de vencimientos alertados |
 | Historial de eventos, indicadores y exportación a CSV | CRM | No se puede reconstruir el recorrido ni medir | Comparación AS-IS vs. TO-BE |
 
+## 0. Modo demo con Docker (sin Gmail, para revisar el sistema completo)
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+```
+
+Levanta el sistema real (CRM + n8n 2.42.6) y además:
+- `correo-entrante` (GreenMail): hace de bandeja de Gmail. Ahí llegan los formularios y n8n los lee por IMAP.
+- `correo-saliente` (Mailpit): recibe los correos que n8n envía a gerencia y los muestra en http://localhost:8025.
+- `formulario`: un formulario de contacto simulado con los campos de opensinergia.com, en http://localhost:8090.
+
+Los contenedores de preparación hacen el resto solos:
+- `demo-preparar`: carga datos ficticios y crea el usuario del CRM.
+- `n8n-importar`: importa y publica los flujos.
+- `demo-cuenta-n8n`: crea la cuenta del editor de n8n.
+
+Accesos:
+
+| Qué | Dónde | Acceso |
+|---|---|---|
+| CRM | http://localhost:8080 | `demo` / `demo2026` |
+| n8n | http://localhost:5678 | `demo@opensinergia.demo` / `Demo2026!` |
+
+Usa un proyecto de Docker separado (`opensinergia-crm-demo`), así que no se mezcla con una instalación real en la misma máquina. Para apagarla: `docker compose -f docker-compose.yml -f docker-compose.demo.yml down` (con `-v` borra sus datos).
+
 ## 1. Probarlo en local con datos ficticios (2 minutos, sin n8n)
 
 ```bash
